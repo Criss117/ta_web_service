@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id    String @id @default(uuid())
+  barcode String @unique
+  description  String
+  costPrice Int
+  salePrice Int
+  wholesalePrice Int
+  stock Int
+  minStock Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  isActive Boolean @default(true)
+
+  productSales ProductSale[]
+}
+
+model Client {
+  id    String @id @default(uuid())
+  ccNumber String @unique
+  fullName  String
+  address String?
+  phone String?
+  creditLimit Int
+  balance Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  isActive Boolean @default(true)
+
+  tickets Ticket[]
+  debtPayments DebtPayment[]
+}
+
+model DebtPayment {
+  id String @id @default(uuid())
+  amount Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  isActive Boolean @default(true)
+
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+}
+
+model Ticket{
+  id String @id @default(uuid())
+  total Int
+  state String 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  isActive Boolean @default(true)
+  
+  clientId String?
+  client Client? @relation(fields: [clientId], references: [id])
+
+  productSales ProductSale[]
+}
+
+model ProductSale {
+  id String @id @default(uuid())
+  salePrice Int
+  quantity Int
+  subTotal Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  isActive Boolean @default(true)
+
+  ticketId String
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  productId String
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model SyncRemote {
+  id String @id @default(uuid())
+  tableName String // Product, Client, Ticket, ProductSale, DebtPayment
+  state String // "PENDING" | "SUCCESS" | "FAILED"
+  error String?
+  lastSync DateTime?
+  recordId String
+  operation String // "CREATE" | "UPDATE" | "DELETE"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  isActive Boolean @default(true)
+}
