@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpException,
-  Param,
-  ParseBoolPipe,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, HttpException, Param, Query } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 

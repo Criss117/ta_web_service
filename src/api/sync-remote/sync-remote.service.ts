@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
 import { SyncRemoteDto } from './dto/sync-remote.dto';
 import {
   SyncClient,
@@ -8,35 +8,58 @@ import {
   SyncTicket,
 } from './models/types';
 import { PrismaService } from '@/src/prisma/prisma.service';
+import { PrismaTx } from '@/src/prisma/models/types';
 
 @Injectable()
 export class SyncRemoteService {
   constructor(private readonly prismaService: PrismaService) {}
-  synchronize(syncRemoteDto: SyncRemoteDto) {
-    const syncClient = this.synchronizeClients(syncRemoteDto.Client);
-    const syncProduct = this.synchronizeProducts(syncRemoteDto.Product);
-    const syncProductSale = this.synchronizeProductSale(
-      syncRemoteDto.ProductSale,
-    );
-    const syncTicket = this.synchronizeTicket(syncRemoteDto.Ticket);
-    const syncDebtPayment = this.synchronizeDebtPayment(
-      syncRemoteDto.DebtPayment,
-    );
+  async synchronize(syncRemoteDto: SyncRemoteDto) {
+    try {
+      await this.prismaService.$transaction(async (tx) => {
+        const syncClient = await this.synchronizeClients(
+          syncRemoteDto.Client,
+          tx,
+        );
+        const syncProduct = await this.synchronizeProducts(
+          syncRemoteDto.Product,
+          tx,
+        );
+        const syncTicket = await this.synchronizeTicket(
+          syncRemoteDto.Ticket,
+          tx,
+        );
+        const syncProductSale = await this.synchronizeProductSale(
+          syncRemoteDto.ProductSale,
+          tx,
+        );
+        const syncDebtPayment = await this.synchronizeDebtPayment(
+          syncRemoteDto.DebtPayment,
+          tx,
+        );
 
-    return Promise.all([
-      syncClient,
-      syncProduct,
-      syncProductSale,
-      syncTicket,
-      syncDebtPayment,
-    ]);
+        return [
+          syncClient,
+          syncProduct,
+          syncProductSale,
+          syncTicket,
+          syncDebtPayment,
+        ];
+      });
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'Synchronized successfully',
+      };
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
   }
 
-  synchronizeClients(syncClient: SyncClient) {
+  synchronizeClients(syncClient: SyncClient, tx: PrismaTx) {
     const { toCreateOrUpdate, toDelete } = syncClient;
 
     const createPromises = toCreateOrUpdate.map(async (client) => {
-      const existClient = await this.prismaService.client.findFirst({
+      const existClient = await tx.client.findFirst({
         where: {
           ccNumber: client.ccNumber,
           id: client.id,
@@ -44,30 +67,45 @@ export class SyncRemoteService {
       });
 
       if (existClient) {
-        return this.prismaService.client.update({
+        return tx.client.update({
           where: {
             id: client.id,
           },
-          data: client,
+          data: {
+            ccNumber: client.ccNumber,
+            fullName: client.fullName,
+            address: client.address,
+            phone: client.phone,
+            creditLimit: client.creditLimit,
+            balance: client.balance,
+            createdAt: client.createdAt,
+          },
         });
       }
 
-      const { id, ...rest } = client;
-
-      return this.prismaService.client.create({
-        data: rest,
+      return tx.client.create({
+        data: {
+          id: client.id,
+          ccNumber: client.ccNumber,
+          fullName: client.fullName,
+          address: client.address,
+          phone: client.phone,
+          creditLimit: client.creditLimit,
+          balance: client.balance,
+          createdAt: client.createdAt,
+        },
       });
     });
 
     const deletePromises = toDelete.map(async (id) => {
-      const existClient = await this.prismaService.client.findFirst({
+      const existClient = await tx.client.findFirst({
         where: {
           id,
         },
       });
 
       if (existClient) {
-        return this.prismaService.client.update({
+        return tx.client.update({
           where: {
             id,
           },
@@ -81,11 +119,11 @@ export class SyncRemoteService {
 
     return Promise.all([...createPromises, ...deletePromises]);
   }
-  synchronizeProducts(syncProduct: SyncProduct) {
+  synchronizeProducts(syncProduct: SyncProduct, tx: PrismaTx) {
     const { toCreateOrUpdate, toDelete } = syncProduct;
 
     const createPromises = toCreateOrUpdate.map(async (product) => {
-      const existProduct = await this.prismaService.product.findFirst({
+      const existProduct = await tx.product.findFirst({
         where: {
           id: product.id,
           barcode: product.barcode,
@@ -93,34 +131,52 @@ export class SyncRemoteService {
       });
 
       if (existProduct) {
-        return this.prismaService.client.update({
+        return tx.product.update({
           where: {
             id: product.id,
           },
-          data: product,
+          data: {
+            barcode: product.barcode,
+            description: product.description,
+            costPrice: product.costPrice,
+            salePrice: product.salePrice,
+            wholesalePrice: product.wholesalePrice,
+            stock: product.stock,
+            minStock: product.minStock,
+            createdAt: product.createdAt,
+          },
         });
       }
 
-      const { id, ...rest } = product;
-
-      return this.prismaService.product.create({
-        data: rest,
+      return tx.product.create({
+        data: {
+          id: product.id,
+          barcode: product.barcode,
+          description: product.description,
+          costPrice: product.costPrice,
+          salePrice: product.salePrice,
+          wholesalePrice: product.wholesalePrice,
+          stock: product.stock,
+          minStock: product.minStock,
+          createdAt: product.createdAt,
+        },
       });
     });
 
     const deletePromises = toDelete.map(async (id) => {
-      const existProduct = await this.prismaService.product.findFirst({
+      const existProduct = await tx.product.findFirst({
         where: {
           id,
         },
       });
 
       if (existProduct) {
-        return this.prismaService.product.update({
+        return tx.product.update({
           where: {
             id,
           },
           data: {
+            barcode: 'deleted' + existProduct.barcode,
             deletedAt: new Date(),
             isActive: false,
           },
@@ -130,11 +186,11 @@ export class SyncRemoteService {
 
     return Promise.all([...createPromises, ...deletePromises]);
   }
-  synchronizeTicket(syncTicket: SyncTicket) {
+  synchronizeTicket(syncTicket: SyncTicket, tx: PrismaTx) {
     const { toCreateOrUpdate, toDelete } = syncTicket;
 
     const createPromises = toCreateOrUpdate.map(async (ticket) => {
-      const existTicket = await this.prismaService.ticket.findFirst({
+      const existTicket = await tx.ticket.findFirst({
         where: {
           id: ticket.id,
           clientId: ticket.clientId,
@@ -142,30 +198,39 @@ export class SyncRemoteService {
       });
 
       if (existTicket) {
-        return this.prismaService.ticket.update({
+        return tx.ticket.update({
           where: {
             id: ticket.id,
           },
-          data: ticket,
+          data: {
+            clientId: ticket.clientId,
+            total: ticket.total,
+            createdAt: ticket.createdAt,
+            state: ticket.state,
+          },
         });
       }
 
-      const { id, ...rest } = ticket;
-
-      return this.prismaService.ticket.create({
-        data: rest,
+      return tx.ticket.create({
+        data: {
+          id: ticket.id,
+          clientId: ticket.clientId,
+          total: ticket.total,
+          createdAt: ticket.createdAt,
+          state: ticket.state,
+        },
       });
     });
 
     const deletePromises = toDelete.map(async (id) => {
-      const existTicket = await this.prismaService.ticket.findFirst({
+      const existTicket = await tx.ticket.findFirst({
         where: {
           id,
         },
       });
 
       if (existTicket) {
-        return this.prismaService.ticket.update({
+        return tx.ticket.update({
           where: {
             id,
           },
@@ -179,41 +244,48 @@ export class SyncRemoteService {
 
     return Promise.all([...createPromises, ...deletePromises]);
   }
-  synchronizeDebtPayment(syncDebtPayment: SyncDebtPayment) {
+  synchronizeDebtPayment(syncDebtPayment: SyncDebtPayment, tx: PrismaTx) {
     const { toCreateOrUpdate, toDelete } = syncDebtPayment;
 
     const createPromises = toCreateOrUpdate.map(async (debtPayment) => {
-      const existDebtPayment = await this.prismaService.debtPayment.findFirst({
+      const existDebtPayment = await tx.debtPayment.findFirst({
         where: {
           id: debtPayment.id,
         },
       });
 
       if (existDebtPayment) {
-        return this.prismaService.debtPayment.update({
+        return tx.debtPayment.update({
           where: {
             id: debtPayment.id,
           },
-          data: debtPayment,
+          data: {
+            amount: debtPayment.amount,
+            clientId: debtPayment.clientId,
+            createdAt: debtPayment.createdAt,
+          },
         });
       }
 
-      const { id, ...rest } = debtPayment;
-
-      return this.prismaService.debtPayment.create({
-        data: rest,
+      return tx.debtPayment.create({
+        data: {
+          id: debtPayment.id,
+          amount: debtPayment.amount,
+          clientId: debtPayment.clientId,
+          createdAt: debtPayment.createdAt,
+        },
       });
     });
 
     const deletePromises = toDelete.map(async (id) => {
-      const existDebtPayment = await this.prismaService.debtPayment.findFirst({
+      const existDebtPayment = await tx.debtPayment.findFirst({
         where: {
           id,
         },
       });
 
       if (existDebtPayment) {
-        return this.prismaService.debtPayment.update({
+        return tx.debtPayment.update({
           where: {
             id,
           },
@@ -228,41 +300,54 @@ export class SyncRemoteService {
     return Promise.all([...createPromises, ...deletePromises]);
   }
 
-  synchronizeProductSale(syncProductSale: SyncProductSale) {
+  synchronizeProductSale(syncProductSale: SyncProductSale, tx: PrismaTx) {
     const { toCreateOrUpdate, toDelete } = syncProductSale;
 
     const createPromises = toCreateOrUpdate.map(async (productSale) => {
-      const existProductSale = await this.prismaService.productSale.findFirst({
+      const existProductSale = await tx.productSale.findFirst({
         where: {
           id: productSale.id,
         },
       });
 
       if (existProductSale) {
-        return this.prismaService.productSale.update({
+        return tx.productSale.update({
           where: {
             id: productSale.id,
           },
-          data: productSale,
+          data: {
+            salePrice: productSale.salePrice,
+            quantity: productSale.quantity,
+            subTotal: productSale.subTotal,
+            createdAt: productSale.createdAt,
+            productId: productSale.productId,
+            ticketId: productSale.ticketId,
+          },
         });
       }
 
-      const { id, ...rest } = productSale;
-
-      return this.prismaService.productSale.create({
-        data: rest,
+      return tx.productSale.create({
+        data: {
+          id: productSale.id,
+          salePrice: productSale.salePrice,
+          quantity: productSale.quantity,
+          subTotal: productSale.subTotal,
+          createdAt: productSale.createdAt,
+          productId: productSale.productId,
+          ticketId: productSale.ticketId,
+        },
       });
     });
 
     const deletePromises = toDelete.map(async (id) => {
-      const existProductSale = await this.prismaService.productSale.findFirst({
+      const existProductSale = await tx.productSale.findFirst({
         where: {
           id,
         },
       });
 
       if (existProductSale) {
-        return this.prismaService.productSale.update({
+        return tx.productSale.update({
           where: {
             id,
           },

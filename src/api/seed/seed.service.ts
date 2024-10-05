@@ -28,25 +28,34 @@ export class SeedService {
 
     this.logger.log('Seeding...');
 
-    const filePath = join(process.cwd(), 'src', 'seed', 'data', 'data.json');
+    const filePath = join(
+      process.cwd(),
+      'src',
+      'api',
+      'seed',
+      'data',
+      'data.json',
+    );
 
     try {
       const fileContents = readFileSync(filePath, 'utf8');
       const items = JSON.parse(fileContents);
 
       await this.prismaService.$transaction(async (tx) => {
-        // await tx.debtPayment.deleteMany();
+        await tx.syncRemote.deleteMany();
 
-        // await tx.productSale.deleteMany();
+        await tx.debtPayment.deleteMany();
 
-        // await tx.ticket.deleteMany();
+        await tx.productSale.deleteMany();
+
+        await tx.ticket.deleteMany();
 
         await tx.product.deleteMany().then(async () => {
           await tx.product.createMany({ data: items.products });
         });
 
         await tx.client.deleteMany().then(async () => {
-          // await tx.client.createMany({ data: items.clients });
+          await tx.client.createMany({ data: items.clients });
           // await tx.ticket.createMany({ data: items.tickets });
           // await tx.productSale.createMany({ data: items.productSale });
           // await tx.debtPayment.createMany({ data: items.debtPayment });

@@ -8,6 +8,7 @@ import {
 
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import corsOptions from './config/cors.options';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -17,7 +18,9 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix('api');
+
   app.use(cookieParser());
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -31,6 +34,11 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<string>('PORT', '8080');
+
+  const frontEndUrl = configService.get<string>('FRONT_END_URL', '');
+
+  app.enableCors(corsOptions(frontEndUrl));
+
   await app.listen(port, '0.0.0.0');
 
   logger.log(`App is ready and listening on port ${port} 🚀`);
@@ -39,9 +47,7 @@ async function bootstrap() {
 bootstrap().catch(handleError);
 
 function handleError(error: unknown) {
-  // eslint-disable-next-line no-console
   console.error(error);
-  // eslint-disable-next-line unicorn/no-process-exit
   process.exit(1);
 }
 

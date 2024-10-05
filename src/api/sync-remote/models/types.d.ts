@@ -39,26 +39,26 @@ export const SyncTableEnum = {
 } as const;
 
 export interface SyncClient {
-  toDelete: number[];
+  toDelete: string[];
   toCreateOrUpdate: (Client | undefined | null)[];
 }
 
 export interface SyncProduct {
-  toDelete: number[];
+  toDelete: string[];
   toCreateOrUpdate: (Product | undefined | null)[];
 }
 
 export interface SyncProductSale {
-  toDelete: number[];
+  toDelete: string[];
   toCreateOrUpdate: (ProductSale | undefined | null)[];
 }
 
 export interface SyncTicket {
-  toDelete: number[];
+  toDelete: string[];
   toCreateOrUpdate: (Ticket | undefined | null)[];
 }
 
 export interface SyncDebtPayment {
-  toDelete: number[];
+  toDelete: string[];
   toCreateOrUpdate: (DebtPayment | undefined | null)[];
 }

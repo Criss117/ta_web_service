@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { DefaultArgs } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '@/src/prisma/prisma.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { CommonResponse } from '../common/models/common.response';
-import { sleep, validateCatchError } from '../common/lib/utils';
+import { validateCatchError } from '../common/lib/utils';
 import { FindOneClientDto } from './dto/find-client.dto';
 import { CLientAndTickets } from './model/types';
 

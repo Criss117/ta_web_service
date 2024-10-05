@@ -8,6 +8,7 @@ export class SyncRemoteController {
 
   @Post()
   synchronize(@Body() syncRemoteDto: SyncRemoteDto) {
+    console.log(syncRemoteDto);
     return this.syncRemoteService.synchronize(syncRemoteDto);
   }
 }

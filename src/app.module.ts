@@ -6,6 +6,7 @@ import { ClientsModule } from './api/clients/clients.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SeedModule } from './api/seed/seed.module';
 import { SyncRemoteModule } from './api/sync-remote/sync-remote.module';
+import { TicketsModule } from './api/tickets/tickets.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SyncRemoteModule } from './api/sync-remote/sync-remote.module';
     PrismaModule,
     SeedModule,
     SyncRemoteModule,
+    TicketsModule,
   ],
 })
 export class AppModule {}
